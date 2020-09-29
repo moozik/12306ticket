@@ -15,6 +15,11 @@ class Ticket:
         self.station = station
         #创建会话对象
         self.s = requests.Session()
+        self.s.headers = {
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br'
+        }
         #超时时间
         self.s.timeout = 5
 
@@ -44,6 +49,7 @@ class Ticket:
             self.main_loop()
             print()
             #延时重启
+            # break
             time.sleep(self.sleep_sec)
 
     def addsearch(self, form, preg_filter, time_filter):
@@ -72,20 +78,26 @@ class Ticket:
             self.table.clear_rows()
 
             response = self.s.get(self.generate_url(config_item['form']))
-
+            # response = requests.get(self.generate_url(config_item['form']))
+            print(self.generate_url(config_item['form']))
             if response.status_code != 200:
                 print('网络错误,status_code:{}'.format(response.status_code))
                 continue
-            if response.text.find('{"data":{"flag"') != 0:
+            if response.text.find('{"httpstatus"') != 0:
+                # print(response.text)
+                with open("./error.log",'wb') as f:#,encoding="gb2312"
+                    f.write(response.content)
                 print('页面错误.')
-                continue
+                exit()
+                # continue
             try:
-                response = response.json().get('data').get('result')
+                station_result = response.json().get('data').get('result')
+                self.station_map = response.json().get('data').get('map')
             except:
                 with open('./json.log','w') as file:
                     file.write(response.text)
                 exit()
-            for item in self.format_train(response):
+            for item in self.format_train(station_result):
                 if self.filter_train(config_item, item):
                     self.table.add_row([
                         item['state'],
@@ -160,10 +172,17 @@ class Ticket:
                 'state':info[1], # 状态 预定
                 'train_no':info[2],
                 'train_id':info[3], # 车次 T3037
-                'train_start':self.station.id2name(info[4]), # 始发站
-                'train_stop':self.station.id2name(info[5]), # 终点站
-                'search_start':self.station.id2name(info[6]), # 购买起点站
-                'search_stop':self.station.id2name(info[7]), # 购买到达站
+
+                #'train_start':self.station.id2name(info[4]), # 始发站
+                #'train_stop':self.station.id2name(info[5]), # 终点站
+                #'search_start':self.station.id2name(info[6]), # 购买起点站
+                #'search_stop':self.station.id2name(info[7]), # 购买到达站
+
+                'train_start':self.station_map[info[4]] if info[4] in self.station_map else info[4], # 始发站
+                'train_stop':self.station_map[info[5]] if info[5] in self.station_map else info[5], # 终点站
+                'search_start':self.station_map[info[6]] if info[6] in self.station_map else info[6], # 购买起点站
+                'search_stop':self.station_map[info[7]] if info[7] in self.station_map else info[7], # 购买到达站
+
                 'time_in':info[8], # 出发时间
                 'time_out':info[9], # 到达时间
                 'time_travel':info[10], # 历经时间
@@ -201,7 +220,7 @@ if __name__ == '__main__':
     #回家车票
     #
     ticket.addsearch({
-        'train_date':'2018-06-15',
+        'train_date':'2020-09-30',
         'from_station':'北京西',
         'to_station':'邢台',
         'purpose_codes':'ADULT'
@@ -209,13 +228,13 @@ if __name__ == '__main__':
         #'state':[],
         #'train_id':[],
         #'have_ticket':['Y','N'],
-        '无座':0,
-        '硬座':0,
-        '硬卧':0,
-        '软卧':0,
-        '一等座':0,
-        '二等座':0,
-        '商务座':0,
+        # '无座':0,
+        # '硬座':0,
+        # '硬卧':0,
+        # '软卧':0,
+        # '一等座':0,
+        # '二等座':0,
+        # '商务座':0,
     },{
         '00:00-23:59':0,
         '00:00-06:00':0,
