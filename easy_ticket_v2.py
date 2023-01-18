@@ -7,27 +7,34 @@ from prettytable import PrettyTable
 class Ticket:
     def __init__(self, station):
         #新建catch目录
-        if os.path.exists(sys.path[0] + '\\catch') == False:
-            os.mkdir(sys.path[0] + '\\catch')
+        if os.path.exists(sys.path[0] + '/catch') == False:
+            os.mkdir(sys.path[0] + '/catch')
         #搜索条件列表
         self.config = []
         #创建会话对象
         self.s = requests.Session()
         self.s.proxies = {
             # 'https':'http://127.0.0.1:1080'
-            'http':'http://127.0.0.1:8888',
-            'https':'http://127.0.0.1:8888',
+            # 'http':'http://127.0.0.1:8888',
+            # 'https':'http://127.0.0.1:8888',
         }
         #超时时间
         self.s.timeout = 20
         self.headers = {
-            'X-Requested-With': 'XMLHttpRequest',
-            # 'Cache-Control': 'no-cache',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            # 'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'Cache-Control': 'max-age=0',
             'Connection': 'keep-alive',
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.37',
-            'Accept': '*/*',
-            # 'Accept-Encoding': 'gzip, deflate, br'
+            'DNT':'1',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 Edg/109.0.1518.52',
         }
+        self.cookies = {
+            'RAIL_EXPIRATION':'1674288050585',
+            'RAIL_DEVICEID': 'ps5fEmKmdQOCBlPQjd7a4OnwDnyKAuByqkI1Gq4OQmJqCUplzG4Fwgwu5FJF2p7X2yrkdmOUv7LIuqYmHEOrupz83iX1ZuOdZgf9BCrrrevvUrMNgaENUPQiSFIN5C867v_lC3kE5gcAD0Yi7P0Ej9HFt7GUu322',
+        }
+        self.s.cookies = requests.utils.cookiejar_from_dict(self.cookies, cookiejar=None, overwrite=True)
         self.sleep_sec = 20
         #展示表格
         self.tableColumn = {
@@ -49,7 +56,7 @@ class Ticket:
         }
         #日志
         LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-        logging.basicConfig(filename=sys.path[0] + '\\ycy.log', level=logging.INFO, format=LOG_FORMAT)
+        logging.basicConfig(filename=sys.path[0] + '/ycy.log', level=logging.INFO, format=LOG_FORMAT)
     
     def main(self):
         while True:
@@ -73,7 +80,7 @@ class Ticket:
                 print()
                 
                 #遍历结果集
-                # print('查询途径站：')
+                print('查询途径站：')
                 for trainItem in trainList:
                     #获取途经站
                     for stationTmp in self.queryByTrainNo(trainItem, configItem):
@@ -86,7 +93,7 @@ class Ticket:
                             halfTichet[key] = {}
                         halfTichet[key][trainItem['train_id']] = stationTmp
                     # print(halfTichet)
-                    '''
+                    
                     #展示车次以及途经车站
                     print(trainItem['train_id']+':',','.join(
                         [
@@ -98,7 +105,6 @@ class Ticket:
                             ]
                         ]
                     ))
-                    '''
                 time.sleep(10)
                 #遍历halfTichet，获取半途车票
                 # print('apiTrain')
@@ -107,7 +113,7 @@ class Ticket:
                     station.id2name(configItem['param']['from_station']),
                     station.id2name(configItem['param']['to_station'])))
                 for key in halfTichet:
-                    print(list(halfTichet[key].values()))
+                    # print(list(halfTichet[key].values()))
                     # print(list(halfTichet[key].values())[0]['station_name'])
                     param = key.split('_')
                     for trainItem in self.apiTrain({
@@ -154,7 +160,7 @@ class Ticket:
         self.config.append(config)
 
     def generateUrl(self, param):
-        url = "https://kyfw.12306.cn/otn/leftTicket/query?leftTicketDTO.train_date={train_date}&leftTicketDTO.from_station={from_station}&leftTicketDTO.to_station={to_station}&purpose_codes={purpose_codes}".format(
+        url = "https://kyfw.12306.cn/otn/leftTicket/queryZ?leftTicketDTO.train_date={train_date}&leftTicketDTO.from_station={from_station}&leftTicketDTO.to_station={to_station}&purpose_codes={purpose_codes}".format(
             train_date = param['train_date'],
             from_station = param['from_station'],
             to_station = param['to_station'],
@@ -173,6 +179,8 @@ class Ticket:
         if response.status_code != 200:
             exit('网络错误,status_code:' + response.status_code)
         if response.text[:1] != '{':
+            with open('err_return.log', 'a') as f:
+                f.write(response.text)
             exit(url+"\n"+response.text[:20])
         station_map = response.json().get('data').get('map')
         for item in response.json().get('data').get('result'):
@@ -212,7 +220,7 @@ class Ticket:
         logging.info(url)
         #判断是否有缓存
         crc32Code = binascii.crc32(url.encode('utf-8'))
-        catchPath = sys.path[0] + '\\catch\\' + str(crc32Code)
+        catchPath = sys.path[0] + '/catch/' + str(crc32Code)
         if os.path.exists(catchPath):
             with open(catchPath,'r') as f:
                 retData = f.read()
@@ -229,7 +237,7 @@ class Ticket:
             retData = response.json().get('data').get('data')
             with open(catchPath,'w') as f:
                 f.write(json.dumps(retData))
-            time.sleep(3)
+            time.sleep(2)
         ret = []
         for key in range(len(retData)):
             item = retData[key]
@@ -342,7 +350,7 @@ if __name__ == '__main__':
     ticket = Ticket(station)
 
     ticket.addsearch({
-        'train_date':'2020-09-30',              #乘车日期
+        'train_date':'2023-01-19',              #乘车日期
         'from_station':station.name2id('北京'), #起始站
         'to_station':station.name2id('邢台'),   #到达站
         'purpose_codes':'ADULT'                 #成人票
@@ -366,9 +374,9 @@ if __name__ == '__main__':
     #回北京车票
 
     ticket.addsearch({
-        'train_date':'2020-10-07',              #乘车日期
+        'train_date':'2023-01-28',              #乘车日期
         'from_station':station.name2id('邢台'), #起始站
-        'to_station':station.name2id('保定'),   #到达站
+        'to_station':station.name2id('北京'),   #到达站
         'purpose_codes':'ADULT'                 #成人票
     },{
         # 'search_start':[],
@@ -381,9 +389,9 @@ if __name__ == '__main__':
         #'yingzuo':[],
         #'2dengzuo':[],
     },{
-        'time_setout_min':'12:00',
+        'time_setout_min':'08:00',
         # 'time_setout_max':'19:19',
-        'time_arrived_max':'21:00',
+        'time_arrived_max':'23:00',
         # 'time_arrived_max':''
     })
 

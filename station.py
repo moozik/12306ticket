@@ -1,7 +1,7 @@
 import sys
 class station:
     def __init__(self):
-        with open(sys.path[0] + '\\station_names.dat','r') as file:
+        with open(sys.path[0] + '/station_names.dat','r') as file:
             station_names = file.read()
         #print(station_names)
         #station_names = station_names.decode('gbk')
